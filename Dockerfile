@@ -5,7 +5,8 @@ FROM python:3.11-slim as builder
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONHTTPSVERIFY=0
 
 # Install system dependencies including certificates
 RUN apt-get update && apt-get install -y \
@@ -22,12 +23,17 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Upgrade pip and install with trusted hosts
-RUN pip install --upgrade pip && \
+# Install packages with SSL verification disabled
+RUN pip install --upgrade pip \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org && \
     pip install --no-cache-dir \
     --trusted-host pypi.org \
     --trusted-host pypi.python.org \
     --trusted-host files.pythonhosted.org \
+    --index-url https://pypi.org/simple/ \
+    --extra-index-url https://pypi.python.org/simple/ \
     -r requirements.txt
 
 # Production stage
