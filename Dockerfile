@@ -50,7 +50,6 @@ WORKDIR /app
 # Copy application code
 COPY app.py .
 COPY static/ ./static/
-COPY templates/ ./templates/
 
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app
