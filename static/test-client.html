@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewRelic SSE Agent Test Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        textarea {
+            height: 100px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .stop-btn {
+            background-color: #dc3545;
+        }
+        
+        .stop-btn:hover {
+            background-color: #c82333;
+        }
+        
+        .examples {
+            margin: 20px 0;
+        }
+        
+        .example-btn {
+            background-color: #28a745;
+            font-size: 12px;
+            padding: 6px 12px;
+            margin: 2px;
+        }
+        
+        .example-btn:hover {
+            background-color: #218838;
+        }
+        
+        .output {
+            margin-top: 30px;
+        }
+        
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .event-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-right: 5px;
+        }
+        
+        .event-query_start { background-color: #e3f2fd; color: #1976d2; }
+        .event-query_result { background-color: #e8f5e8; color: #388e3c; }
+        .event-data_item { background-color: #fff3e0; color: #f57c00; }
+        .event-query_complete { background-color: #f3e5f5; color: #7b1fa2; }
+        .event-error { background-color: #ffebee; color: #d32f2f; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 NewRelic SSE Agent Test Client</h1>
+        
+        <div class="form-group">
+            <label for="serverUrl">Server URL:</label>
+            <input type="text" id="serverUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+        </div>
+        
+        <div class="form-group">
+            <label for="accountId">Account ID:</label>
+            <input type="text" id="accountId" placeholder="Leave empty to use server default">
+        </div>
+        
+        <div class="form-group">
+            <label for="query">NRQL Query:</label>
+            <textarea id="query" placeholder="SELECT * FROM Transaction SINCE 1 hour ago LIMIT 10"></textarea>
+        </div>
+        
+        <div class="examples">
+            <label>Example Queries:</label><br>
+            <button class="example-btn" onclick="setQuery('SELECT * FROM Transaction SINCE 1 hour ago LIMIT 10')">Recent Transactions</button>
+            <button class="example-btn" onclick="setQuery('SELECT * FROM Transaction WHERE error IS TRUE SINCE 1 hour ago LIMIT 10')">Error Analysis</button>
+            <button class="example-btn" onclick="setQuery('SELECT average(duration) FROM Transaction FACET name ORDER BY average(duration) DESC LIMIT 5')">Performance Analysis</button>
+            <button class="example-btn" onclick="setQuery('SELECT * FROM Log WHERE level = \'ERROR\' SINCE 30 minutes ago LIMIT 20')">Error Logs</button>
+            <button class="example-btn" onclick="setQuery('SELECT average(cpuPercent) FROM SystemSample FACET hostname SINCE 1 hour ago')">CPU Usage</button>
+        </div>
+        
+        <div class="form-group">
+            <button onclick="startStreaming()" id="startBtn">🚀 Start SSE Stream</button>
+            <button onclick="stopStreaming()" id="stopBtn" class="stop-btn" disabled>⏹️ Stop Stream</button>
+            <button onclick="executeQuery()" id="queryBtn">📊 Execute Query (No Stream)</button>
+            <button onclick="clearLog()" id="clearBtn">🗑️ Clear Log</button>
+            <button onclick="testHealth()" id="healthBtn">❤️ Health Check</button>
+        </div>
+        
+        <div class="output">
+            <div id="status" class="status disconnected">Disconnected</div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="eventCount">0</div>
+                    <div class="stat-label">Events Received</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="dataItems">0</div>
+                    <div class="stat-label">Data Items</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="duration">0s</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="lastEvent">-</div>
+                    <div class="stat-label">Last Event</div>
+                </div>
+            </div>
+            
+            <label for="log">Event Log:</label>
+            <div id="log" class="log">Ready to connect... Click "Start SSE Stream" to begin.\n</div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let eventCount = 0;
+        let dataItemCount = 0;
+        let startTime = null;
+        let durationInterval = null;
+
+        function updateStatus(status, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = message;
+        }
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const line = `[${timestamp}] ${message}\n`;
+            logEl.textContent += line;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateStats() {
+            document.getElementById('eventCount').textContent = eventCount;
+            document.getElementById('dataItems').textContent = dataItemCount;
+            
+            if (startTime) {
+                const duration = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('duration').textContent = `${duration}s`;
+            }
+        }
+
+        function setQuery(query) {
+            document.getElementById('query').value = query;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            eventCount = 0;
+            dataItemCount = 0;
+            startTime = null;
+            updateStats();
+            document.getElementById('lastEvent').textContent = '-';
+        }
+
+        async function testHealth() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            try {
+                const response = await fetch(`${serverUrl}/health`);
+                const data = await response.json();
+                log(`Health Check: ${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Health Check Failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function executeQuery() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const query = document.getElementById('query').value.trim();
+            const accountId = document.getElementById('accountId').value.trim();
+
+            if (!query) {
+                alert('Please enter a NRQL query');
+                return;
+            }
+
+            try {
+                updateStatus('connecting', 'Executing query...');
+                log(`Executing query: ${query}`);
+
+                const payload = {
+                    query: query,
+                    account_id: accountId,
+                    stream: false
+                };
+
+                const response = await fetch(`${serverUrl}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                log(`Query Result: ${JSON.stringify(data, null, 2)}`);
+                updateStatus('disconnected', 'Query completed');
+
+            } catch (error) {
+                log(`Query Error: ${error.message}`, 'error');
+                updateStatus('disconnected', 'Query failed');
+            }
+        }
+
+        function startStreaming() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const query = document.getElementById('query').value.trim();
+            const accountId = document.getElementById('accountId').value.trim();
+
+            if (!query) {
+                alert('Please enter a NRQL query');
+                return;
+            }
+
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // Reset stats
+            eventCount = 0;
+            dataItemCount = 0;
+            startTime = Date.now();
+
+            // Update UI
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            updateStatus('connecting', 'Connecting...');
+
+            // Create payload
+            const payload = {
+                query: query,
+                account_id: accountId,
+                stream: true
+            };
+
+            // Start SSE connection
+            try {
+                const url = new URL(`${serverUrl}/query/stream`);
+                
+                // Create EventSource with POST payload (using fetch for POST, then EventSource for stream)
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream',
+                    },
+                    body: JSON.stringify(payload)
+                }).then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    
+                    function readStream() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                updateStatus('disconnected', 'Stream ended');
+                                document.getElementById('startBtn').disabled = false;
+                                document.getElementById('stopBtn').disabled = true;
+                                return;
+                            }
+                            
+                            const chunk = decoder.decode(value, { stream: true });
+                            const lines = chunk.split('\n');
+                            
+                            let currentEvent = null;
+                            let currentData = null;
+                            
+                            for (const line of lines) {
+                                if (line.startsWith('event: ')) {
+                                    currentEvent = line.substring(7);
+                                } else if (line.startsWith('data: ')) {
+                                    currentData = line.substring(6);
+                                    
+                                    if (currentEvent && currentData) {
+                                        try {
+                                            const data = JSON.parse(currentData);
+                                            handleSSEEvent(currentEvent, data);
+                                        } catch (e) {
+                                            log(`Error parsing JSON: ${e.message}`, 'error');
+                                        }
+                                        currentEvent = null;
+                                        currentData = null;
+                                    }
+                                }
+                            }
+                            
+                            readStream();
+                        }).catch(error => {
+                            log(`Stream Error: ${error.message}`, 'error');
+                            updateStatus('disconnected', 'Stream error');
+                            document.getElementById('startBtn').disabled = false;
+                            document.getElementById('stopBtn').disabled = true;
+                        });
+                    }
+                    
+                    updateStatus('connected', 'Streaming...');
+                    log('SSE connection established');
+                    
+                    // Start duration counter
+                    durationInterval = setInterval(updateStats, 1000);
+                    
+                    readStream();
+                    
+                }).catch(error => {
+                    log(`Connection Error: ${error.message}`, 'error');
+                    updateStatus('disconnected', 'Connection failed');
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                });
+
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                updateStatus('disconnected', 'Connection failed');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        function handleSSEEvent(eventType, data) {
+            eventCount++;
+            document.getElementById('lastEvent').textContent = eventType;
+            
+            if (eventType === 'data_item') {
+                dataItemCount++;
+            }
+            
+            updateStats();
+            
+            const eventTypeClass = `event-${eventType.replace('_', '_')}`;
+            log(`<span class="event-type ${eventTypeClass}">${eventType}</span> ${JSON.stringify(data, null, 2)}`);
+        }
+
+        function stopStreaming() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            
+            if (durationInterval) {
+                clearInterval(durationInterval);
+                durationInterval = null;
+            }
+            
+            updateStatus('disconnected', 'Disconnected');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            log('SSE connection closed');
+        }
+
+        // Initialize with a default query
+        window.onload = function() {
+            setQuery('SELECT * FROM Transaction SINCE 1 hour ago LIMIT 10');
+        };
+    </script>
+</body>
+</html>
