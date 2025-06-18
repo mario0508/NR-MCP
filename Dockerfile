@@ -39,11 +39,11 @@ RUN pip install --upgrade pip \
 # Production stage
 FROM python:3.11-slim as production
 
-# Set environment variables
+# Set environment variables (changed port to 6000)
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PORT=8000
+    PORT=6000
 
 # Install runtime dependencies including certificates
 RUN apt-get update && apt-get install -y \
@@ -72,11 +72,11 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-# Health check
+# Health check (updated to use port 6000)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Expose port
+# Expose port 6000
 EXPOSE ${PORT}
 
 # Run the application
